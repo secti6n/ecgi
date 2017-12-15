@@ -1,0 +1,1 @@
+# Erlang Common Gateway Interface
