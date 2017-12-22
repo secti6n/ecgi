@@ -1,6 +1,6 @@
 -module(ecgi).
 
--export([send/1, recv/1, chunked_output/1]).
+-export([send/1, recv/1, apply_handler/1, chunked_output/1]).
 -export([send_chunked/2]).
 
 send(Data) ->
@@ -23,10 +23,17 @@ recv({F,A}, Length) ->
 recv(F, Length) when is_function(F,1) ->
     F(Length).
 
+apply_handler({M,F,A}) ->
+    apply(M,F,A);
+apply_handler({F,A}) ->
+    apply(F,A);
+apply_handler(F) when is_function(F, 0) ->
+    F().
+
 chunked_output(Handler) ->
     Output = get(ecgi_output),
     put(ecgi_output, {ecgi, send_chunked, Output}),
-    ecgi_handler:apply(Handler).
+    apply_handler(Handler).
 
 send_chunked(Output, Data) ->
     send(Output,
@@ -54,6 +61,13 @@ recv_test_() ->
     [ ?_assert(recv({erlang, apply, fun(X) -> X end}, [ok]) =:= ok),
       ?_assert(recv({fun (_,X) -> X end, none}, ok) =:= ok),
       ?_assert(recv(fun(X) -> X end, ok) =:= ok) ].
+
+apply_handler_test_() ->
+    Fun = fun() -> ok end,
+
+    [?_assert(apply_handler({erlang, apply, [Fun, []]}) =:= ok),
+     ?_assert(apply_handler({Fun, []}) =:= ok),
+     ?_assert(apply_handler(Fun) =:= ok)].
 
 chunked_output_test() ->
     put(ecgi_output, fun iolist_to_binary/1),

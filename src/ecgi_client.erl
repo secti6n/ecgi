@@ -87,16 +87,11 @@ handle(Parent, Ref, Handler, {input, Input}) ->
 handle(Parent, Ref, Handler, none) ->
     put(ecgi_output, {fun send/2, {Parent, Ref}}),
 
-    {response, Status, Headers, Body} = ecgi_handler:apply(Handler),
-
+    {response, Status, Headers, Body} = ecgi:apply_handler(Handler),
     Parent ! {response_start, Ref, Status, Headers},
     case Body of
-        {M,F,A} ->
-            apply(M,F,A);
-        {F,A} ->
-            apply(F,A);
-        F when is_function(F, 0) ->
-            F();
+        {handler, BodyHandler} ->
+            ecgi:apply_handler(BodyHandler);
         _ ->
             ok = ecgi:send(Body)
     end,
@@ -126,9 +121,9 @@ request_test_() ->
     Fun = fun () -> ok = ecgi:send(<<"OK">>) end,
 
     [ ?_assert(request(Handler(Response), Method, Path) =:= Response),
-      ?_assert(request(Handler({response, Status, Headers, {erlang, apply, [Fun, []]}}), Method, Path) =:= Response),
-      ?_assert(request(Handler({response, Status, Headers, {Fun, []}}), Method, Path) =:= Response),
-      ?_assert(request(Handler({response, Status, Headers, Fun}), Method, Path) =:= Response),
+      ?_assert(request(Handler({response, Status, Headers, {handler, {erlang, apply, [Fun, []]}}}), Method, Path) =:= Response),
+      ?_assert(request(Handler({response, Status, Headers, {handler, {Fun, []}}}), Method, Path) =:= Response),
+      ?_assert(request(Handler({response, Status, Headers, {handler, Fun}}), Method, Path) =:= Response),
       ?_assert(wait_response(request(Handler(Response), Method, Path, [no_wait])) =:= Response)
     ].
 
@@ -158,6 +153,5 @@ request_body_too_short_test_() ->
 
     [?_assert(request(Handler, 'PUT', Path, [{data, <<"">>}]) =:= Response),
      ?_assert(request(Handler, 'PUT', Path, [{data, <<"O">>}]) =:= Response)].
-
 
 -endif.

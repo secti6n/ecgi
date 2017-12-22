@@ -2,15 +2,16 @@
 
 -export(
    [normalize_method/1,
-    normalize_header_field_name/1,
-    set_header/2]).
+    normalize_request_header_name/1,
+    set_header/2,
+    handle/2]).
 
 normalize_method(Atom) when is_atom(Atom) ->
     atom_to_binary(Atom, utf8);
 normalize_method(Bin) when is_binary(Bin) ->
     Bin.
 
-normalize_header_field_name(Name) ->
+normalize_request_header_name(Name) ->
     List =
         case Name of
             Atom when is_atom(Atom) -> atom_to_list(Atom);
@@ -23,7 +24,33 @@ normalize_header_field_name(Name) ->
     <<"HTTP_", Name1/binary>>.
 
 set_header(Field, Value) ->
-    put(normalize_header_field_name(Field), Value).
+    put(normalize_request_header_name(Field), Value).
+
+
+normalize_response_header_name(Atom) when is_atom(Atom) ->
+    atom_to_binary(Atom, utf8);
+normalize_response_header_name(List) when is_list(List) ->
+    unicode:characters_to_binary(List);
+normalize_response_header_name(Bin) when is_binary(Bin) ->
+    Bin.
+
+handle(Handler, Proto) ->
+    {response, {Code, Reason}, Headers, Body} = ecgi:apply_handler(Handler),
+
+    Response =
+        [ Proto, <<" ">>, integer_to_binary(Code), <<" ">>, Reason, <<"\r\n">>,
+          [ [normalize_response_header_name(Field), <<": ">>, Value, <<"\r\n">>]
+            || {Field, Value} <- maps:to_list(Headers)],
+          <<"\r\n">>
+        ],
+
+    case Body of
+        {handler, BodyHandler} ->
+            ok = ecgi:send(Response),
+            ecgi:apply_handler(BodyHandler);
+        _ ->
+            ok = ecgi:send([Response, Body])
+    end.
 
 
 -ifdef(TEST).
@@ -39,10 +66,10 @@ normalize_method_test_() ->
       ?_test(Test(<<"GET">>, <<"GET">>))
     ].
 
-normalize_header_field_name_test_() ->
+normalize_request_header_name_test_() ->
     Test =
         fun (F,N) ->
-                ?assert(normalize_header_field_name(F) =:= N)
+                ?assert(normalize_request_header_name(F) =:= N)
         end,
 
     [ ?_test(Test('Accept', <<"HTTP_ACCEPT">>)),
@@ -61,4 +88,58 @@ set_header_test_() ->
       ?_test(Test(<<"X-Meta">>, <<"HTTP_X_META">>)),
       ?_test(Test(<<"X_Meta">>, <<"HTTP_X_META">>))
     ].
+
+
+normalize_response_header_name_test_() ->
+    Test =
+        fun (F,N) ->
+                ?assert(normalize_response_header_name(F) =:= N)
+        end,
+
+    [ ?_test(Test('Connection', <<"Connection">>)),
+      ?_test(Test(<<"Connection">>, <<"Connection">>)),
+      ?_test(Test("Connection", <<"Connection">>))
+    ].
+
+handle_test_() ->
+    Test =
+        fun (Handler, Response) ->
+                Self = self(),
+                Ref = make_ref(),
+                Send = fun(Data) -> Self ! {Ref, data, Data}, ok end,
+
+                spawn_link(
+                  fun () ->
+                          put(ecgi_output, Send),
+                          handle(Handler, <<"HTTP/1.1">>),
+                          Self ! {Ref, eof}
+                  end),
+
+                ?assert(
+                   iolist_to_binary(
+                      (fun Receive() ->
+                               receive
+                                   {Ref, data, Data} ->
+                                       [Data|Receive()];
+                                   {Ref, eof} ->
+                                       []
+                               end
+                       end)()) =:= Response)
+        end,
+
+    Response =
+        <<"HTTP/1.1 200 OK\r\n"
+          "Connection: close\r\n"
+          "\r\n"
+          "OK">>,
+
+    Fun = fun () -> ok = ecgi:send(<<"OK">>) end,
+    Status = {200, <<"OK">>},
+    Headers = #{'Connection' => <<"close">>},
+
+    [?_test(Test(fun() -> {response, Status, Headers, <<"OK">>} end, Response)),
+     ?_test(Test(fun() -> {response, Status, Headers, {handler, {erlang, apply, [Fun, []]}}} end, Response)),
+     ?_test(Test(fun() -> {response, Status, Headers, {handler, {Fun, []}}} end, Response)),
+     ?_test(Test(fun() -> {response, Status, Headers, {handler, Fun}} end, Response))].
+
 -endif.
