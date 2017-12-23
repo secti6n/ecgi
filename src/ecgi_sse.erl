@@ -25,12 +25,12 @@ send(Data) ->
 normalize_field_name_test_() ->
     Test =
         fun (F,N) ->
-                ?assert(normalize_field_name(F) =:= N)
+                ?_assertEqual(N, normalize_field_name(F))
         end,
 
-    [ ?_test(Test('event', <<"event">>)),
-      ?_test(Test(<<"event">>, <<"event">>)),
-      ?_test(Test("event", <<"event">>))
+    [ Test('event', <<"event">>),
+      Test(<<"event">>, <<"event">>),
+      Test("event", <<"event">>)
     ].
 
 send_test_() ->
@@ -40,6 +40,7 @@ send_test_() ->
                 send(Data)
         end,
 
-     [ ?_assert(Send(<<"a">>) =:= <<"data: a\n\n">>),
-       ?_assert(Send(#{event => <<"msg">>, data => <<"a">>}) =:= <<"data: a\nevent: msg\n\n">>) ].
+     [ ?_assertEqual(<<"data: a\n\n">>, Send(<<"a">>)),
+       ?_assertEqual(<<"data: a\nevent: msg\n\n">>, Send(#{event => <<"msg">>, data => <<"a">>})) ].
+
 -endif.

@@ -120,11 +120,11 @@ request_test_() ->
     Response = {response, Status, Headers, <<"OK">>},
     Fun = fun () -> ok = ecgi:send(<<"OK">>) end,
 
-    [ ?_assert(request(Handler(Response), Method, Path) =:= Response),
-      ?_assert(request(Handler({response, Status, Headers, {handler, {erlang, apply, [Fun, []]}}}), Method, Path) =:= Response),
-      ?_assert(request(Handler({response, Status, Headers, {handler, {Fun, []}}}), Method, Path) =:= Response),
-      ?_assert(request(Handler({response, Status, Headers, {handler, Fun}}), Method, Path) =:= Response),
-      ?_assert(wait_response(request(Handler(Response), Method, Path, [no_wait])) =:= Response)
+    [ ?_assertEqual(Response, request(Handler(Response), Method, Path)),
+      ?_assertEqual(Response, request(Handler({response, Status, Headers, {handler, {erlang, apply, [Fun, []]}}}), Method, Path)),
+      ?_assertEqual(Response, request(Handler({response, Status, Headers, {handler, {Fun, []}}}), Method, Path)),
+      ?_assertEqual(Response, request(Handler({response, Status, Headers, {handler, Fun}}), Method, Path)),
+      ?_assertEqual(Response, wait_response(request(Handler(Response), Method, Path, [no_wait])))
     ].
 
 request_body_test() ->
@@ -138,7 +138,7 @@ request_body_test() ->
                 {response, Status, #{}, Bin}
         end,
 
-    ?assert(request(Handler, 'PUT', Path, [{data, <<"OK">>}]) =:= Response).
+    ?assertEqual(Response, request(Handler, 'PUT', Path, [{data, <<"OK">>}])).
 
 request_body_too_short_test_() ->
     Status = {200, <<"OK">>},
@@ -151,7 +151,7 @@ request_body_too_short_test_() ->
                 {response, Status, #{}, <<"OK">>}
         end,
 
-    [?_assert(request(Handler, 'PUT', Path, [{data, <<"">>}]) =:= Response),
-     ?_assert(request(Handler, 'PUT', Path, [{data, <<"O">>}]) =:= Response)].
+    [?_assertEqual(Response, request(Handler, 'PUT', Path, [{data, <<"">>}])),
+     ?_assertEqual(Response, request(Handler, 'PUT', Path, [{data, <<"O">>}]))].
 
 -endif.

@@ -59,29 +59,29 @@ handle(Handler, Proto) ->
 normalize_method_test_() ->
     Test =
         fun (M,N) ->
-                ?assert(normalize_method(M) =:= N)
+                ?_assertEqual(N, normalize_method(M))
         end,
 
-    [ ?_test(Test('GET', <<"GET">>)),
-      ?_test(Test(<<"GET">>, <<"GET">>))
+    [ Test('GET', <<"GET">>),
+      Test(<<"GET">>, <<"GET">>)
     ].
 
 normalize_request_header_name_test_() ->
     Test =
         fun (F,N) ->
-                ?assert(normalize_request_header_name(F) =:= N)
+                ?_assertEqual(N, normalize_request_header_name(F))
         end,
 
-    [ ?_test(Test('Accept', <<"HTTP_ACCEPT">>)),
-      ?_test(Test(<<"X-Meta">>, <<"HTTP_X_META">>)),
-      ?_test(Test(<<"X_Meta">>, <<"HTTP_X_META">>))
+    [ Test('Accept', <<"HTTP_ACCEPT">>),
+      Test(<<"X-Meta">>, <<"HTTP_X_META">>),
+      Test(<<"X_Meta">>, <<"HTTP_X_META">>)
     ].
 
 set_header_test_() ->
     Test =
         fun (F,N) ->
                 set_header(F,ok),
-                ?assert(get(N) =:= ok)
+                ?assertEqual(ok, get(N))
         end,
 
     [ ?_test(Test('Accept', <<"HTTP_ACCEPT">>)),
@@ -93,12 +93,12 @@ set_header_test_() ->
 normalize_response_header_name_test_() ->
     Test =
         fun (F,N) ->
-                ?assert(normalize_response_header_name(F) =:= N)
+                ?_assertEqual(N, normalize_response_header_name(F))
         end,
 
-    [ ?_test(Test('Connection', <<"Connection">>)),
-      ?_test(Test(<<"Connection">>, <<"Connection">>)),
-      ?_test(Test("Connection", <<"Connection">>))
+    [ Test('Connection', <<"Connection">>),
+      Test(<<"Connection">>, <<"Connection">>),
+      Test("Connection", <<"Connection">>)
     ].
 
 handle_test_() ->
@@ -115,7 +115,8 @@ handle_test_() ->
                           Self ! {Ref, eof}
                   end),
 
-                ?assert(
+                ?assertEqual(
+                   Response,
                    iolist_to_binary(
                       (fun Receive() ->
                                receive
@@ -124,7 +125,7 @@ handle_test_() ->
                                    {Ref, eof} ->
                                        []
                                end
-                       end)()) =:= Response)
+                       end)()))
         end,
 
     Response =

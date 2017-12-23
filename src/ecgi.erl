@@ -46,35 +46,35 @@ send_chunked(Output, Data) ->
 
 send_test() ->
     put(ecgi_output, fun iolist_to_binary/1),
-    ?assert(send([<<"A">>,<<"B">>]) =:= <<"AB">>).
+    ?assertEqual(<<"AB">>, send([<<"A">>,<<"B">>])).
 
 recv_test() ->
     put(ecgi_input, fun integer_to_binary/1),
-    ?assert(recv(10) =:= <<"10">>).
+    ?assertEqual(<<"10">>, recv(10)).
 
 send_test_() ->
-    [ ?_assert(send({erlang, apply, fun(X) -> X end}, [ok]) =:= ok),
-      ?_assert(send({fun (_,X) -> X end, none}, ok) =:= ok),
-      ?_assert(send(fun(X) -> X end, ok) =:= ok) ].
+    [ ?_assertEqual(ok, send({erlang, apply, fun(X) -> X end}, [ok])),
+      ?_assertEqual(ok, send({fun (_,X) -> X end, none}, ok)),
+      ?_assertEqual(ok, send(fun(X) -> X end, ok)) ].
 
 recv_test_() ->
-    [ ?_assert(recv({erlang, apply, fun(X) -> X end}, [ok]) =:= ok),
-      ?_assert(recv({fun (_,X) -> X end, none}, ok) =:= ok),
-      ?_assert(recv(fun(X) -> X end, ok) =:= ok) ].
+    [ ?_assertEqual(ok, recv({erlang, apply, fun(X) -> X end}, [ok])),
+      ?_assertEqual(ok, recv({fun (_,X) -> X end, none}, ok)),
+      ?_assertEqual(ok, recv(fun(X) -> X end, ok)) ].
 
 apply_handler_test_() ->
     Fun = fun() -> ok end,
-
-    [?_assert(apply_handler({erlang, apply, [Fun, []]}) =:= ok),
-     ?_assert(apply_handler({Fun, []}) =:= ok),
-     ?_assert(apply_handler(Fun) =:= ok)].
+    [?_assertEqual(ok, apply_handler({erlang, apply, [Fun, []]})),
+     ?_assertEqual(ok, apply_handler({Fun, []})),
+     ?_assertEqual(ok, apply_handler(Fun))].
 
 chunked_output_test() ->
     put(ecgi_output, fun iolist_to_binary/1),
-    ?assert(chunked_output(fun () -> ecgi:send(<<"OK">>) end) =:= <<"2\r\nOK\r\n">>).
+    ?assertEqual(<<"2\r\nOK\r\n">>, chunked_output(fun () -> ecgi:send(<<"OK">>) end)).
 
 send_chunked_test_() ->
     Send = fun(Data) -> send_chunked(fun iolist_to_binary/1, Data) end,
-    [?_assert(Send(<<"OK">>) =:= <<"2\r\nOK\r\n">>),
-     ?_assert(Send(<<"0000000000">>) =:= <<"A\r\n0000000000\r\n">>)].
+    [?_assertEqual(<<"2\r\nOK\r\n">>, Send(<<"OK">>)),
+     ?_assertEqual(<<"A\r\n0000000000\r\n">>, Send(<<"0000000000">>))].
+
 -endif.
